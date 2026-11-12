@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOLSTRATS MILLION</title><style>
+:root{color-scheme:dark;font-family:Inter,system-ui,Arial;background:#080d17;color:#eff6ff}
+*{box-sizing:border-box}body{margin:0}header{background:#101a2c;border-bottom:1px solid #21334f;padding:22px max(22px,4vw)}
+h1{font-size:26px;letter-spacing:.08em;margin:0}p{color:#9bb0cc}
+main{padding:24px max(22px,4vw);max-width:1500px;margin:auto}
+nav{display:flex;justify-content:space-between;flex-wrap:wrap;gap:15px;align-items:center}
+button{background:#233c64;color:#fff;border:1px solid #4267a0;border-radius:9px;padding:10px 16px;cursor:pointer;font-weight:700}
+button:hover{background:#355384}.status{color:#7ae0b0;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:20px 0}
+.card{border:1px solid #263958;background:#111d31;border-radius:14px;padding:18px}
+.metric{font-size:27px;font-weight:800;margin:10px 0}.sub{color:#90a6c2;font-size:12px}
+section{margin:24px 0}h2{font-size:18px}table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:11px;border-bottom:1px solid #2c405a}th{color:#93b2dc}
+.scroll{overflow-x:auto}.tag{background:#173d38;color:#8ce9bf;padding:5px 8px;border-radius:6px}
+.bad{color:#f9a0a0}.foot{color:#8294ac;font-size:12px;margin:28px 0}
+a{color:#a9caff}#error{font-size:12px;color:#f4b7b7}
+</style></head><body>
+<header><nav><div><h1>⚡ SOLSTRATS MILLION</h1><p>Live Solana watcher · One million configuration search space · $10 paper accounts</p></div>
+<div><span id="status" class="status">CONNECTING</span> &nbsp; <button onclick="control('start')">Start / Resume</button> <button onclick="control('pause')">Pause</button> <button onclick="control('stop')">Stop</button></div></nav></header>
+<main>
+<div class="grid">
+<div class="card"><div class="sub">Strategy configurations defined</div><div class="metric" id="total">1,000,000</div><div class="sub">Not equivalent to completed tests</div></div>
+<div class="card"><div class="sub">Active forward-paper configurations</div><div class="metric" id="active">—</div><div class="sub">Limited CPU usage</div></div>
+<div class="card"><div class="sub">Paper signal evaluations</div><div class="metric" id="evaluations">—</div><div class="sub">Not historical backtests</div></div>
+<div class="card"><div class="sub">Completed historical backtests</div><div class="metric" id="backtests">0</div><div class="sub">No validated historical archive</div></div>
+</div>
+<section class="card"><h2>Market data health</h2><p id="fresh">Waiting for first observation…</p><div id="error"></div><div class="sub">Free DEX Screener API · sampled live prices · no wallet connected · paper trading only</div></section>
+<section class="card"><h2>Live Solana watchlist</h2><div class="scroll"><table><thead><tr><th>Token</th><th>USD price</th><th>Liquidity</th><th>5m volume</th><th>Market link</th></tr></thead><tbody id="pairs"><tr><td colspan="5">Waiting for API…</td></tr></tbody></table></div></section>
+<section class="card"><h2>Top paper strategy accounts</h2><p class="sub">Each active configuration starts with a separate simulated $10 account. Ranking is provisional, not proof of profitability.</p><div class="scroll"><table><thead><tr><th>ID</th><th>Family</th><th>Paper equity</th><th>Realized P&L</th><th>Trades</th><th>Max DD</th></tr></thead><tbody id="leaders"><tr><td colspan="6">Waiting for sampled observations…</td></tr></tbody></table></div></section>
+<section class="card"><h2>Recent simulated actions</h2><div class="scroll"><table><thead><tr><th>Observed at</th><th>Strategy</th><th>Side</th><th>Token</th><th>Paper cash</th></tr></thead><tbody id="events"><tr><td colspan="5">No paper trades yet</td></tr></tbody></table></div></section>
+<div class="foot">This is an independent starter dashboard, not a pixel-perfect copy of the older SOLSTRATS site. Simulation cannot guarantee executable fills. All values are estimates; network costs and liquidity can make $10 strategies unprofitable.</div>
+</main><script>
+const $=id=>document.getElementById(id);
+function cell(value){const t=document.createElement('td');t.textContent=String(value);return t}
+function table(id,rows,fields,empty){const el=$(id);el.replaceChildren();if(!rows.length){const tr=document.createElement('tr'),td=cell(empty);td.colSpan=fields.length;tr.append(td);el.append(tr);return}
+for(const row of rows){const tr=document.createElement('tr');for(const fn of fields){tr.append(cell(fn(row)))}el.append(tr)}}
+const num=n=>Number(n).toLocaleString('en-US');
+const money=n=>'$'+Number(n||0).toFixed(4);
+async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();
+$('status').textContent=d.running?(d.source_status||'STARTING').toUpperCase():'PAUSED';
+$('total').textContent=num(d.total_configurations);$('active').textContent=num(d.active_configurations);
+$('evaluations').textContent=num(d.paper_signal_evaluations);$('backtests').textContent=num(d.completed_backtests);
+$('fresh').textContent=d.updated?'Last successful source update: '+new Date(d.updated*1000).toLocaleString()+' · '+Math.round(Date.now()/1000-d.updated)+'s ago':'No successful live samples yet';
+$('error').textContent=d.error||'';
+table('pairs',d.pairs,[x=>x.symbol+' — '+x.name,x=>money(x.price),x=>money(x.liquidity),x=>money(x.volume5m),x=>x.url||'—'],'No eligible Solana pools yet');
+table('leaders',d.leaders.slice(0,30),[x=>x.id,x=>x.family,x=>money(x.equity),x=>money(x.realized),x=>x.trades,x=>x.drawdown+'%'],'No evaluated accounts yet');
+table('events',d.events,[x=>new Date(x.ts*1000).toLocaleTimeString(),x=>x.strategy,x=>x.side,x=>x.symbol,x=>money(x.balance)],'No paper trades yet');
+}catch(e){$('status').textContent='DISCONNECTED';$('error').textContent=String(e)}}
+async function control(action){try{await fetch('/api/'+action,{method:'POST'});await refresh()}catch(e){$('error').textContent=String(e)}}
+refresh();setInterval(refresh,5000);
+</script></body></html>
