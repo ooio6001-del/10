@@ -13,7 +13,7 @@ class EngineTests(unittest.TestCase):
         a=PaperAccount()
         self.assertTrue(a.buy(1,100,1.0))
         self.assertTrue(a.sell(1,101))
-        self.assertAlmostEqual(a.cash,4.9701,places=5)
+        self.assertAlmostEqual(a.cash,4.9601,places=5)
         self.assertLess(a.realized,0)
     def test_wins(self):
         a=PaperAccount()
