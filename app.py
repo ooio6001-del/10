@@ -3,16 +3,22 @@ import json, os, threading, time, urllib.request, urllib.error
 from collections import defaultdict, deque
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from engine import PaperAccount, config_at, TOTAL_CONFIGURATIONS, should_enter, should_exit
+from engine import PaperAccount, config_at, TOTAL_CONFIGURATIONS, should_enter, should_exit, balance_at, stake_amount, BALANCE_VARIANTS, MAX_STAKE_CENTS
 
 BASE=Path(__file__).resolve().parent
 DATA=BASE/"state"
 DATA.mkdir(exist_ok=True)
-STATEFILE=DATA/"session.json"
+STATEFILE=DATA/"session_v2.json"
 PORT=int(os.environ.get("SOLSTRATS_PORT","8792"))
 POLL_SECONDS=45
 MAX_PAIRS=8
-ACTIVE_STRATEGIES=100
+ACTIVE_STRATEGIES=100  # capped live sample; not all balance/stake combinations evaluated
+
+def scenario(index):
+    """A deterministic sample of balances and stakes spanning the requested ranges."""
+    balance_index=round(index * (BALANCE_VARIANTS-1) / (ACTIVE_STRATEGIES-1))
+    stake_cents=1+round(index * (MAX_STAKE_CENTS-1) / (ACTIVE_STRATEGIES-1))
+    return {"balance":balance_at(balance_index),"stake":stake_amount(stake_cents)}
 lock=threading.RLock()
 running=True
 status="starting"
@@ -157,7 +163,7 @@ def tick():
             # drives all bounded paper strategies, rather than one API request per strategy.
             for i in range(ACTIVE_STRATEGIES):
                 c=config_at(i*10000)
-                a=accounts.setdefault(i,PaperAccount())
+                a=accounts.setdefault(i,PaperAccount(cash=scenario(i)["balance"],last_equity=scenario(i)["balance"],peak_equity=scenario(i)["balance"]))
                 if a.units and a.token != address:
                     continue  # Never mark or sell a position using a different token price
                 if a.units:
@@ -165,7 +171,7 @@ def tick():
                         a.sell(p["price"],now)
                         paper_events.appendleft({"ts":now,"strategy":i,"side":"SELL","symbol":p["symbol"],"balance":round(a.cash,5)})
                 elif should_enter(c,change,volume_ratio):
-                    if a.buy(p["price"],now):
+                    if a.buy(p["price"],now,scenario(i)["stake"]):
                         a.token=address
                         paper_events.appendleft({"ts":now,"strategy":i,"side":"BUY","symbol":p["symbol"],"balance":round(a.cash,5)})
                 a.mark(p["price"])
@@ -188,7 +194,7 @@ def worker():
 
 def snapshot():
     with lock:
-        ranked=sorted(({"id":i*10000,"family":config_at(i*10000)["family"],"equity":round(a.last_equity,4),
+        ranked=sorted(({"id":i*10000,"family":config_at(i*10000)["family"],"stake":scenario(i)["stake"],"starting_balance":scenario(i)["balance"],"equity":round(a.last_equity,4),
                          "realized":round(a.realized,4),"trades":a.trades,
                          "wins":a.wins,"drawdown":round(a.max_drawdown_pct,2)} for i,a in accounts.items()),
                       key=lambda row:(row["equity"],row["trades"]),reverse=True)[:100]
@@ -196,6 +202,7 @@ def snapshot():
         return {"running":running,"source_status":effective_status,"error":last_error,"updated":last_update,
             "source":last_source,"uptime":round(time.time()-started),
             "total_configurations":TOTAL_CONFIGURATIONS,"active_configurations":ACTIVE_STRATEGIES,
+            "balance_variants":BALANCE_VARIANTS,"stake_variants":MAX_STAKE_CENTS,"balance_min":5,"balance_max":10000,"stake_min":0.01,"stake_max":5.0,
             "paper_signal_evaluations":evaluations,"completed_backtests":0,
             "pairs":list(pairs.values()),"source_diagnostics":source_diagnostics,"leaders":ranked,"events":list(paper_events)[:30],
             "notice":"LIVE market observations. PAPER trades only. No real orders; estimated fills and costs."}
