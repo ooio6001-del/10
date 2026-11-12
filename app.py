@@ -19,6 +19,7 @@ status="starting"
 last_error=""
 last_update=None
 last_source=None
+source_diagnostics=[]
 observations=defaultdict(lambda:deque(maxlen=250))
 pairs={}
 accounts={}
@@ -56,42 +57,89 @@ def restore():
     except (OSError,ValueError,TypeError) as exc:
         print("Previous session could not be loaded:",exc)
 
-def fetch_pairs():
-    # Token boosts yield discovery candidates; the second endpoint verifies actual Solana pairs.
-    discovered=read_json("https://api.dexscreener.com/token-boosts/latest/v1")
-    addresses=[]
-    for item in discovered if isinstance(discovered,list) else []:
-        if item.get("chainId")=="solana" and item.get("tokenAddress"):
-            address=item["tokenAddress"]
-            if address not in addresses: addresses.append(address)
-        if len(addresses)>=5: break
-    output={}
-    for address in addresses:
+def safe_number(value):
+    try:
+        result=float(value)
+        return result if result > 0 and result < float("inf") else 0.0
+    except (TypeError,ValueError,OverflowError):
+        return 0.0
+
+def discovery_addresses():
+    """Collect free API discovery candidates; do not equate promotions with organic trend."""
+    found=[]
+    diagnostics=[]
+    for name,url in [
+        ("DEX Screener boosted", "https://api.dexscreener.com/token-boosts/latest/v1"),
+        ("DEX Screener profiles", "https://api.dexscreener.com/token-profiles/latest/v1")
+    ]:
         try:
-            results=read_json("https://api.dexscreener.com/latest/dex/tokens/"+address)
-            candidates=[p for p in (results.get("pairs") or []) if p.get("chainId")=="solana"]
-            candidates.sort(key=lambda p:float((p.get("liquidity") or {}).get("usd") or 0),reverse=True)
-            if candidates:
-                p=candidates[0]
-                price=float(p.get("priceUsd") or 0)
-                liquidity=float((p.get("liquidity") or {}).get("usd") or 0)
-                if price>0 and liquidity>=5000:
-                    output[address]={"name":str((p.get("baseToken") or {}).get("name") or address[:8])[:60],
-                       "symbol":str((p.get("baseToken") or {}).get("symbol") or "?")[:18],
-                       "address":address,"price":price,"liquidity":liquidity,
-                       "volume5m":float((p.get("volume") or {}).get("m5") or 0),
-                       "url":p.get("url") or ""}
-        except (OSError,ValueError,TypeError,KeyError): continue
-        if len(output)>=MAX_PAIRS: break
-    return output
+            items=read_json(url)
+            for item in items if isinstance(items,list) else []:
+                if item.get("chainId")=="solana" and item.get("tokenAddress"):
+                    address=item["tokenAddress"]
+                    if address not in found: found.append(address)
+            diagnostics.append(name+": OK")
+        except (OSError,ValueError,TypeError) as exc:
+            diagnostics.append(name+": "+str(exc)[:100])
+    # GeckoTerminal lists new Solana pools, including ones not paying for promotions.
+    try:
+        payload=read_json("https://api.geckoterminal.com/api/v2/networks/solana/new_pools")
+        for item in payload.get("data",[]):
+            ident=(((item.get("relationships") or {}).get("base_token") or {}).get("data") or {}).get("id","")
+            address=ident.split("_",1)[-1] if ident.startswith("solana_") else ""
+            if address and address not in found: found.append(address)
+        diagnostics.append("GeckoTerminal new pools: OK")
+    except (OSError,ValueError,TypeError,AttributeError) as exc:
+        diagnostics.append("GeckoTerminal new pools: "+str(exc)[:100])
+    # Persistently tracked tokens get fresh pricing even after they leave discovery.
+    with lock:
+        retained=list(pairs.keys())
+        for a in accounts.values():
+            if a.units and a.token: retained.append(a.token)
+    return list(dict.fromkeys(retained+found))[:24], diagnostics
+
+def fetch_pairs():
+    addresses, diagnostics=discovery_addresses()
+    output={}
+    # DEX Screener's chain-specific batch lookup reduces free API traffic.
+    for offset in range(0,len(addresses),24):
+        chunk=addresses[offset:offset+24]
+        if not chunk: continue
+        results=read_json("https://api.dexscreener.com/tokens/v1/solana/"+",".join(chunk))
+        candidates=results if isinstance(results,list) else (results.get("pairs") or [])
+        by_address={}
+        for p in candidates:
+            if not isinstance(p,dict) or p.get("chainId")!="solana": continue
+            addr=(p.get("baseToken") or {}).get("address")
+            if addr not in chunk: continue
+            if safe_number((p.get("liquidity") or {}).get("usd")) < 5000: continue
+            if not safe_number(p.get("priceUsd")): continue
+            if addr not in by_address or safe_number((p.get("liquidity") or {}).get("usd")) > safe_number((by_address[addr].get("liquidity") or {}).get("usd")):
+                by_address[addr]=p
+        for addr,p in by_address.items():
+            output[addr]={"name":str((p.get("baseToken") or {}).get("name") or addr[:8])[:60],
+               "symbol":str((p.get("baseToken") or {}).get("symbol") or "?")[:18],
+               "address":addr,"price":safe_number(p.get("priceUsd")),
+               "liquidity":safe_number((p.get("liquidity") or {}).get("usd")),
+               "volume5m":safe_number((p.get("volume") or {}).get("m5")),
+               "marketcap":safe_number(p.get("marketCap")),
+               "buys5m":int(((p.get("txns") or {}).get("m5") or {}).get("buys") or 0),
+               "sells5m":int(((p.get("txns") or {}).get("m5") or {}).get("sells") or 0),
+               "pair_address":p.get("pairAddress") or "",
+               "dex":p.get("dexId") or "",
+               "url":p.get("url") or "",
+               "observed_at":time.time(),"source":"DEX Screener mainnet-indexed Solana pool"}
+    return dict(list(output.items())[:MAX_PAIRS]), diagnostics
 
 def tick():
     global last_update,last_source,evaluations,status,last_error,pairs
-    fresh=fetch_pairs()
+    global source_diagnostics
+    fresh, diagnostics=fetch_pairs()
     if not fresh: raise ValueError("No eligible Solana pairs returned from free endpoint")
     now=time.time()
     with lock:
         pairs=fresh
+        source_diagnostics=diagnostics
         last_update=now
         last_source="DEX Screener free API"
         status="live"
@@ -144,11 +192,12 @@ def snapshot():
                          "realized":round(a.realized,4),"trades":a.trades,
                          "wins":a.wins,"drawdown":round(a.max_drawdown_pct,2)} for i,a in accounts.items()),
                       key=lambda row:(row["equity"],row["trades"]),reverse=True)[:100]
-        return {"running":running,"source_status":status,"error":last_error,"updated":last_update,
+        effective_status=("stale" if last_update and time.time()-last_update > 3*POLL_SECONDS else status)
+        return {"running":running,"source_status":effective_status,"error":last_error,"updated":last_update,
             "source":last_source,"uptime":round(time.time()-started),
             "total_configurations":TOTAL_CONFIGURATIONS,"active_configurations":ACTIVE_STRATEGIES,
             "paper_signal_evaluations":evaluations,"completed_backtests":0,
-            "pairs":list(pairs.values()),"leaders":ranked,"events":list(paper_events)[:30],
+            "pairs":list(pairs.values()),"source_diagnostics":source_diagnostics,"leaders":ranked,"events":list(paper_events)[:30],
             "notice":"LIVE market observations. PAPER trades only. No real orders; estimated fills and costs."}
 
 class Handler(BaseHTTPRequestHandler):
