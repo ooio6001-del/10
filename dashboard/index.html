@@ -17,7 +17,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #2c405a}th{color:#93b
 .bad{color:#f9a0a0}.foot{color:#8294ac;font-size:12px;margin:28px 0}
 a{color:#a9caff}#error{font-size:12px;color:#f4b7b7}
 </style></head><body>
-<header><nav><div><h1>⚡ SOLSTRATS MILLION</h1><p>Live Solana watcher · One million configuration search space · $10 paper accounts</p></div>
+<header><nav><div><h1>⚡ SOLSTRATS MILLION</h1><p>Live Solana watcher · One million strategy configurations · $5–$10,000 paper balance search · $0.01–$5 stakes</p></div>
 <div><span id="status" class="status">CONNECTING</span> &nbsp; <button onclick="control('start')">Start / Resume</button> <button onclick="control('pause')">Pause</button> <button onclick="control('stop')">Stop</button></div></nav></header>
 <main>
 <div class="grid">
@@ -26,9 +26,9 @@ a{color:#a9caff}#error{font-size:12px;color:#f4b7b7}
 <div class="card"><div class="sub">Paper signal evaluations</div><div class="metric" id="evaluations">—</div><div class="sub">Not historical backtests</div></div>
 <div class="card"><div class="sub">Completed historical backtests</div><div class="metric" id="backtests">0</div><div class="sub">No validated historical archive</div></div>
 </div>
-<section class="card"><h2>Market data health</h2><p id="fresh">Waiting for first observation…</p><div id="error"></div><div class="sub">Free DEX Screener API · sampled live prices · no wallet connected · paper trading only</div></section>
-<section class="card"><h2>Live Solana watchlist</h2><div class="scroll"><table><thead><tr><th>Token</th><th>USD price</th><th>Liquidity</th><th>5m volume</th><th>Market link</th></tr></thead><tbody id="pairs"><tr><td colspan="5">Waiting for API…</td></tr></tbody></table></div></section>
-<section class="card"><h2>Top paper strategy accounts</h2><p class="sub">Each active configuration starts with a separate simulated $10 account. Ranking is provisional, not proof of profitability.</p><div class="scroll"><table><thead><tr><th>ID</th><th>Family</th><th>Paper equity</th><th>Realized P&L</th><th>Trades</th><th>Max DD</th></tr></thead><tbody id="leaders"><tr><td colspan="6">Waiting for sampled observations…</td></tr></tbody></table></div></section>
+<section class="card"><h2>Market data health</h2><p id="fresh">Waiting for first observation…</p><div id="error"></div><div class="sub">Free DEX Screener and GeckoTerminal discovery · sampled live Solana prices · no wallet connected · paper trading only</div></section>
+<section class="card"><h2>Live Solana watchlist</h2><div class="scroll"><table><thead><tr><th>Token</th><th>USD price</th><th>Liquidity</th><th>5m volume</th><th>Market cap</th><th>5m buys/sells</th><th>Market link</th></tr></thead><tbody id="pairs"><tr><td colspan="5">Waiting for API…</td></tr></tbody></table></div></section>
+<section class="card"><h2>Top paper strategy accounts</h2><p class="sub">Each active configuration has an independent simulated account from $5 to $10,000 and a paper stake between $0.01 and $5. Ranking is provisional, not proof of profitability.</p><div class="scroll"><table><thead><tr><th>ID</th><th>Family</th><th>Starting cash</th><th>Stake</th><th>Paper equity</th><th>Realized P&L</th><th>Trades</th><th>Max DD</th></tr></thead><tbody id="leaders"><tr><td colspan="6">Waiting for sampled observations…</td></tr></tbody></table></div></section>
 <section class="card"><h2>Recent simulated actions</h2><div class="scroll"><table><thead><tr><th>Observed at</th><th>Strategy</th><th>Side</th><th>Token</th><th>Paper cash</th></tr></thead><tbody id="events"><tr><td colspan="5">No paper trades yet</td></tr></tbody></table></div></section>
 <div class="foot">This is an independent starter dashboard, not a pixel-perfect copy of the older SOLSTRATS site. Simulation cannot guarantee executable fills. All values are estimates; network costs and liquidity can make $10 strategies unprofitable.</div>
 </main><script>
@@ -43,9 +43,9 @@ $('status').textContent=d.running?(d.source_status||'STARTING').toUpperCase():'P
 $('total').textContent=num(d.total_configurations);$('active').textContent=num(d.active_configurations);
 $('evaluations').textContent=num(d.paper_signal_evaluations);$('backtests').textContent=num(d.completed_backtests);
 $('fresh').textContent=d.updated?'Last successful source update: '+new Date(d.updated*1000).toLocaleString()+' · '+Math.round(Date.now()/1000-d.updated)+'s ago':'No successful live samples yet';
-$('error').textContent=d.error||'';
-table('pairs',d.pairs,[x=>x.symbol+' — '+x.name,x=>money(x.price),x=>money(x.liquidity),x=>money(x.volume5m),x=>x.url||'—'],'No eligible Solana pools yet');
-table('leaders',d.leaders.slice(0,30),[x=>x.id,x=>x.family,x=>money(x.equity),x=>money(x.realized),x=>x.trades,x=>x.drawdown+'%'],'No evaluated accounts yet');
+$('error').textContent=[d.error,...(d.source_diagnostics||[])].filter(Boolean).join(' | ');
+table('pairs',d.pairs,[x=>x.symbol+' — '+x.name,x=>money(x.price),x=>money(x.liquidity),x=>money(x.volume5m),x=>money(x.marketcap),x=>x.buys5m+"/"+x.sells5m,x=>x.url||'—'],'No eligible Solana pools yet');
+table('leaders',d.leaders.slice(0,30),[x=>x.id,x=>x.family,x=>money(x.starting_balance),x=>money(x.stake),x=>money(x.equity),x=>money(x.realized),x=>x.trades,x=>x.drawdown+'%'],'No evaluated accounts yet');
 table('events',d.events,[x=>new Date(x.ts*1000).toLocaleTimeString(),x=>x.strategy,x=>x.side,x=>x.symbol,x=>money(x.balance)],'No paper trades yet');
 }catch(e){$('status').textContent='DISCONNECTED';$('error').textContent=String(e)}}
 async function control(action){try{await fetch('/api/'+action,{method:'POST'});await refresh()}catch(e){$('error').textContent=String(e)}}
