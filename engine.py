@@ -35,6 +35,7 @@ class PaperAccount:
     units: float = 0.0
     entry: float = 0.0
     opened_at: float = 0.0
+    token: str = ""
     trades: int = 0
     wins: int = 0
     realized: float = 0.0
@@ -74,6 +75,7 @@ class PaperAccount:
         self.realized+=pnl
         self.history.append({"ts":timestamp,"pnl":round(pnl,5),"cash":round(self.cash,5)})
         self.entry=0.0
+        self.token=""
         self.mark(price)
         return True
 
