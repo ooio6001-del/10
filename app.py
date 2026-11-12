@@ -108,14 +108,17 @@ def tick():
             # Only one observed token per account at a time; one shared price observation
             # drives all bounded paper strategies, rather than one API request per strategy.
             for i in range(ACTIVE_STRATEGIES):
-                c=config_at(i)
+                c=config_at(i*10000)
                 a=accounts.setdefault(i,PaperAccount())
+                if a.units and a.token != address:
+                    continue  # Never mark or sell a position using a different token price
                 if a.units:
                     if should_exit(c,a,p["price"],now):
                         a.sell(p["price"],now)
                         paper_events.appendleft({"ts":now,"strategy":i,"side":"SELL","symbol":p["symbol"],"balance":round(a.cash,5)})
                 elif should_enter(c,change,volume_ratio):
                     if a.buy(p["price"],now):
+                        a.token=address
                         paper_events.appendleft({"ts":now,"strategy":i,"side":"BUY","symbol":p["symbol"],"balance":round(a.cash,5)})
                 a.mark(p["price"])
                 evaluations+=1
@@ -137,7 +140,7 @@ def worker():
 
 def snapshot():
     with lock:
-        ranked=sorted(({"id":i,"family":config_at(i)["family"],"equity":round(a.last_equity,4),
+        ranked=sorted(({"id":i*10000,"family":config_at(i*10000)["family"],"equity":round(a.last_equity,4),
                          "realized":round(a.realized,4),"trades":a.trades,
                          "wins":a.wins,"drawdown":round(a.max_drawdown_pct,2)} for i,a in accounts.items()),
                       key=lambda row:(row["equity"],row["trades"]),reverse=True)[:100]
