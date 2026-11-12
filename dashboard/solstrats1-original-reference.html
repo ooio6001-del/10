@@ -1,0 +1,269 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOLSTRATS Live Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b0e14;--card:#141925;--line:#232a3a;--txt:#e6e9f0;--mut:#8b93a7;--g:#2fd38a;--r:#ff5d6c;--a:#9b7bff;--y:#ffc857}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#0b0e14ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+h1{font-size:18px;margin:0}h1 span{color:var(--a)}h2{font-size:16px;margin:22px 0 8px}h3{font-size:14px;margin:14px 0 6px;color:var(--mut)}
+main{max-width:1200px;margin:auto;padding:12px 14px 40px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut)}.ok .dot{background:var(--g)}.bad .dot{background:var(--r)}.warn .dot{background:var(--y)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.k{color:var(--mut);font-size:12px}.v{font-size:20px;font-weight:650;margin-top:2px}
+.pos{color:var(--g)}.neg{color:var(--r)}.mut{color:var(--mut)}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{position:sticky;top:0;background:#1a2030;color:var(--mut);font-weight:600;cursor:pointer;user-select:none}th:hover{color:var(--txt)}
+td.l,th.l{text-align:left}td.rule{white-space:normal;min-width:280px;max-width:520px;text-align:left;color:#c9cfdc;font-size:12px}
+tr:last-child td{border-bottom:0}
+.q{border-left:3px solid var(--g);margin-bottom:10px}.q .rule{margin-top:6px;color:#c9cfdc;font-size:13px}
+.stats{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-size:13px}.stats b{font-weight:650}
+.note{color:var(--mut);font-size:12px}.warnbox{background:#2a2110;border:1px solid #5a4415;color:#ffd98a;border-radius:10px;padding:8px 12px;font-size:12px;margin:8px 0}
+#chartwrap{height:300px}footer{text-align:center;color:var(--mut);font-size:12px;padding:20px;border-top:1px solid var(--line)}
+a{color:var(--a)}button{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer}
+.god{border:1px solid #6b55d6;background:linear-gradient(135deg,#1b1640,#141925);border-radius:14px;padding:14px;margin-bottom:10px}
+.moon{border-color:#b8860b;background:linear-gradient(135deg,#2a2108,#141925)}
+.topbox{margin:-4px 0 12px}.topbox h3{margin:6px 0 4px;font-size:14px}.early{font-size:10px;padding:1px 5px;border-radius:6px;background:#3a2f12;color:#e8b84a;margin-left:4px;white-space:nowrap}
+.topbox td.rule,#microt td.rule{min-width:560px;max-width:760px;font-size:11px;line-height:1.3}
+.rocket{border-color:#d6455d;background:linear-gradient(135deg,#2c0f17,#141925)}
+.famc{border-color:#3d7bd6;background:linear-gradient(135deg,#0f1d33,#141925)}.top20c{border-color:#ff8c00;background:linear-gradient(135deg,#331a00,#141925)}.allin{border-color:#e0b000;background:linear-gradient(135deg,#2e2600,#141925)}.glitch{border-color:#888;background:repeating-linear-gradient(135deg,#1d1d1d,#1d1d1d 12px,#232323 12px,#232323 24px)}
+.micro{border-color:#2e8b57;background:linear-gradient(135deg,#0f2a1c,#141925)}
+.god h2{margin:0 0 6px;font-size:18px}.god .big{font-size:28px;font-weight:750}.kv{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:#c9cfdc;margin-top:6px}.kv b{color:var(--mut);font-weight:500}
+</style></head><body>
+<header><h1>SOLSTRATS <span>Live</span></h1>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<span id="eng" class="pill"><span class="dot"></span><span>loading…</span></span>
+<span id="upd" class="pill mut">—</span>
+<a id="dl" class="pill" href="solstrats-dashboard.html" download>⬇ Download snapshot</a></div></header>
+<main>
+<div id="jserr" class="warnbox" style="display:none;font-family:monospace;white-space:pre-wrap"></div>
+<div id="offline" class="warnbox" style="display:none">Offline snapshot: data frozen at <b id="snapt"></b>. Open the live link for current numbers.</div>
+<div id="famtop"></div><div id="godp"></div><div id="godtop" class="topbox"></div><div id="moonp"></div><div id="moontop" class="topbox"></div><div id="rocketp"></div><div id="rockettop" class="topbox"></div><div id="famrest"></div><div id="sniperp"></div><div id="microp"></div>
+<div class="grid" id="engcards"></div>
+
+<h2>🎯 Hunt: $100 start · $3–$8 per buy · up to 25 open</h2>
+<div class="grid" id="huntcards"></div>
+<p class="note" id="qrule"></p>
+<div id="bestov"></div>
+<h3>Strategy families</h3><div id="famnote" class="note"></div><div class="tw"><table id="hfams"></table></div>
+<h3>Qualified strategies (passing right now)</h3><div id="qual"></div>
+<h3 id="qeverh">Ever qualified (incl. ones that later dropped; latest + best shown)</h3><div class="tw"><table id="qever"></table></div>
+<h3>Equity over time: top hunt strategies</h3><div class="card"><div id="chartwrap"><canvas id="chart"></canvas></div><div class="note" id="chartnote"></div></div>
+<h3>Top 10 by ranked net return</h3><div class="tw"><table id="top10"></table></div>
+<h3>Top 10 with 20+ trades</h3><div class="tw"><table id="top20p"></table></div>
+<h3>Candidates (8–19 trades): <span id="ccount"></span></h3><div class="tw"><table id="cands"></table></div>
+
+<h2>📊 Main grid: 1.5M combos, balances $25–$5,000</h2>
+<div class="grid" id="lbcards"></div>
+<div class="warnbox">Compounding strategies on the main grid can show huge % returns from one or two thin-pool spikes that couldn't be filled in real life. Treat giant numbers with heavy suspicion.</div>
+<h3>Best per balance tier</h3><div class="tw"><table id="tiers"></table></div>
+<h3>Strategy family medians</h3><div class="tw"><table id="fams"></table></div>
+<h3>Top 20 overall</h3><div class="tw"><table id="lbtop"></table></div>
+</main>
+<footer>Paper trading only, early results can be luck. No wallet, no real trades. Auto-refreshes every 90s; new data about every 2 min.</footer>
+<script>
+const EMBED=/*__EMBED__*/null;
+const $=id=>document.getElementById(id);
+const f=(x,d=2)=>x==null||isNaN(x)?'—':Number(x).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:0});
+const usd=x=>x==null?'—':'$'+f(x,2);
+const pc=x=>x==null?'—':`<span class="${x>=0?'pos':'neg'}">${x>=0?'+':''}${f(x,1)}%</span>`;
+const sg=x=>x==null?'—':`<span class="${x>=0?'pos':'neg'}">${x>=0?'+':''}$${f(Math.abs(x),2)}</span>`.replace('+$-','-$');
+const ago=s=>s<90?Math.round(s)+'s':s<5400?Math.round(s/60)+'m':(s/3600).toFixed(1)+'h';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const card=(k,v,cls='')=>`<div class="card"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`;
+const sortState={};
+function table(id,cols,rows){
+  const el=$(id); el._cols=cols; el._rows=rows||[]; render(id);
+}
+function render(id){
+  const el=$(id),cols=el._cols,st=sortState[id];let rows=[...el._rows];
+  if(st){const c=cols[st.i];rows.sort((a,b)=>{let x=c.s?c.s(a):a[c.k],y=c.s?c.s(b):b[c.k];if(typeof x==='string')return st.d*x.localeCompare(y);return st.d*((x??-1e18)-(y??-1e18))})}
+  if(!rows.length){el.innerHTML='<tr><td class="l mut">None yet</td></tr>';return}
+  el.innerHTML='<thead><tr>'+cols.map((c,i)=>`<th class="${c.l?'l':''}" data-i="${i}">${c.h}${st&&st.i==i?(st.d>0?' ▲':' ▼'):''}</th>`).join('')+'</tr></thead><tbody>'+
+   rows.map(r=>'<tr>'+cols.map(c=>`<td class="${c.cls||(c.l?'l':'')}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')+'</tr>').join('')+'</tbody>';
+  el.querySelectorAll('th').forEach(th=>th.onclick=()=>{const i=+th.dataset.i;const p=sortState[id];sortState[id]={i,d:p&&p.i==i?-p.d:-1};render(id)});
+}
+const HC=[{h:'#',k:'id',f:r=>'#'+r.id},{h:'Return',k:'net_return_pct',f:r=>pc(r.net_return_pct)},{h:'Equity',k:'equity',f:r=>usd(r.equity)},
+ {h:'Trades',k:'trades'},{h:'Win %',k:'win_rate',f:r=>f(r.win_rate,1)+'%'},{h:'PF',k:'profit_factor',f:r=>f(r.profit_factor,2)},
+ {h:'$/trade',k:'avg_pnl_per_trade',f:r=>sg(r.avg_pnl_per_trade)},{h:'Max DD',k:'max_drawdown_pct',f:r=>f(r.max_drawdown_pct,1)+'%'},
+ {h:'Open',k:'open_positions'},{h:'Age',k:'age_min',f:r=>ago((r.age_min||0)*60)},{h:'Rules',k:'rule',cls:'rule',l:1,f:r=>esc(r.rule)}];
+const LC=[{h:'Strategy',k:'strategy',l:1,cls:'rule'},{h:'Family',k:'family',l:1},{h:'Start',k:'start_balance',f:r=>usd(r.start_balance)},{h:'Equity',k:'equity',f:r=>usd(r.equity)},
+ {h:'Return',k:'return_pct',f:r=>pc(r.return_pct)},{h:'Trades',k:'trades'},{h:'Win %',k:'win_rate',f:r=>f(r.win_rate,1)+'%'},{h:'Max DD',k:'max_drawdown_pct',f:r=>f(r.max_drawdown_pct,1)+'%'},{h:'Fees',k:'fees_paid_usd',f:r=>usd(r.fees_paid_usd)}];
+let chart;
+let ERRS=[];
+const safe=(name,fn)=>{try{fn()}catch(e){console.error(name,e);ERRS.push(name+': '+(e&&e.message||e))}};
+function showErrs(extra){const el=$('jserr');if(!el)return;const L=extra?[extra,...ERRS]:ERRS;
+  if(L.length){el.style.display='';el.textContent='Dashboard problem (other panels still updated): '+L.slice(0,6).join(' | ')}else{el.style.display='none';el.textContent=''}}
+
+const pick=(o,...ks)=>{if(!o||typeof o!=='object')return;for(const k of ks)if(o[k]!=null)return o[k]};
+const settingsTxt=v=>v==null?'':typeof v==='string'?v:Object.entries(v).map(([k,x])=>`${k}=${typeof x==='object'?JSON.stringify(x):x}`).join(' · ');
+function statsOf(o){o=o||{};const c=(typeof o.champion==='object'&&o.champion)||(typeof o.stats==='object'&&o.stats)||o;return {
+ ret:pick(c,'net_return_pct','return_pct'),eq:pick(c,'equity'),tr:pick(c,'trades'),wr:pick(c,'win_rate'),pf:pick(c,'profit_factor','pf'),
+ ppt:pick(c,'avg_pnl_per_trade','pnl_per_trade'),dd:pick(c,'max_drawdown_pct','max_dd'),op:pick(c,'open_positions','open')??pick(o,'open_positions'),
+ rule:pick(c,'rule','settings_text')||pick(o,'rule','entry_rule'),set:pick(c,'settings')||pick(o,'settings'),id:pick(c,'id')??pick(o,'id','champion_id')}}
+const opTxt=v=>Array.isArray(v)?v.length:v;
+const statLine=t=>`<div class="stats"><span>Equity <b>${usd(t.eq)}</b></span><span>Trades <b>${t.tr??'—'}</b></span><span>Win <b>${t.wr!=null?f(t.wr,1)+'%':'—'}</b></span><span>PF <b>${f(t.pf)}</b></span><span>$/trade <b>${sg(t.ppt)}</b></span><span>Max DD <b>${t.dd!=null?f(t.dd,1)+'%':'—'}</b></span><span>Open <b>${opTxt(t.op)??'—'}</b></span></div>`;
+const posList=v=>Array.isArray(v)&&v.length?`<div class="kv"><b>Holding</b> ${v.slice(0,25).map(x=>typeof x==='object'?esc(pick(x,'symbol','token','name')||'')+(pick(x,'unrealized_pct','pnl_pct')!=null?' '+pc(pick(x,'unrealized_pct','pnl_pct')):''):esc(x)).join(' · ')}</div>`:'';
+const fmtSet=v=>{if(!v||typeof v!=='object')return settingsTxt(v);const P=x=>x==null?'none':typeof x==='number'?f(x*100,1)+'%':x;
+  return [['Buy',v.buy],['TP',P(v.take_profit)],['SL',P(v.stop_loss)],['Trail',v.trailing?P(v.trailing):'none'],['Max hold',v.max_hold_min!=null?v.max_hold_min+'m':null],['Max open',v.max_open],['Sell-pressure exit',v.sell_pressure_exit==null?null:v.sell_pressure_exit?'yes':'no'],['Add-ons',v.addons]].filter(x=>x[1]!=null).map(x=>`<span><b>${x[0]}</b> ${esc(x[1])}</span>`).join('')};
+function panel(id,cls,title,o,warm,extra){
+  if(!o){$(id).innerHTML=`<div class="god ${cls}"><h2>${title}</h2><div class="mut">${warm}</div></div>`;return}
+  const c=o.champion&&typeof o.champion==='object'?o.champion:null,t=c?statsOf(c):null;
+  const agg=[['Variants alive',o.variants_alive],['Tried',o.variants_tried],['Traded',o.traded],['Profitable',o.profitable??o.variants_with_profitable_close],['Closed trades',o.closed_trades],['Open positions (all variants)',o.open_positions],['Coins held',o.coins_held],['Median equity',o.median_equity!=null?usd(o.median_equity):null]]
+    .filter(x=>x[1]!=null).map(x=>`<span><b>${x[0]}</b> ${typeof x[1]==='number'?f(x[1],0):x[1]}</span>`).join('');
+  const hold=c?(Array.isArray(c.open)?c.open:c.holding):null;
+  $(id).innerHTML=`<div class="god ${cls}"><h2>${title} ${c&&c.id!=null?'<span class="mut" style="font-size:13px">champion #'+esc(c.id)+'</span>':''}</h2>
+  ${o.rule?`<div class="note">${esc(o.rule)}</div>`:''}
+  <div class="big">${c?pc(t.ret):'<span class="mut" style="font-size:16px">No champion yet, still testing</span>'}</div>${c?statLine(t):''}
+  ${extra?extra(o):''}${hold?posList(hold.map(x=>typeof x==='object'?{symbol:x.symbol||x.coin,unrealized_pct:x.unrealized_pct}:x)):''}
+  ${c&&c.settings?`<div class="kv">${fmtSet(c.settings)}</div>`:''}
+  ${c&&c.rule?`<div style="margin-top:6px;font-size:12px;color:#c9cfdc">${esc(c.rule)}</div>`:''}
+  <div class="kv" style="margin-top:8px">${agg}</div></div>`}
+function top20(id,title,list){
+  const el=$(id); if(!el)return;
+  if(!Array.isArray(list)||!list.length){el.innerHTML='';return}
+  el.innerHTML=`<h3>${title} — top ${list.length} most profitable (biggest → lowest)</h3><div class="note">Profit = equity vs $100 start, incl. open positions at current sell value. Rows marked <span class="early">early/luck</span> have fewer than 5 closed trades. ${list.some(r=>r.best_trade!==undefined)?'"Best trade" = its biggest single closed winner. ':'Biggest single winning trade isn\'t tracked for this family; '}"Best open" shows its best coin held right now.</div><div class="tw"><table id="${id}_t"></table></div>`;
+  table(id+'_t',[{h:'#',k:'rank'},{h:'Bot',k:'id',f:r=>'#'+esc(r.id)+(r.identical>1?` <span class="mut">(+${r.identical-1} clones)</span>`:'')},
+   {h:'Profit $',k:'net_usd',f:r=>sg(r.net_usd)+(r.early?'<span class="early">early/luck</span>':'')},{h:'Profit %',k:'net_pct',f:r=>pc(r.net_pct)},
+   {h:'Equity',k:'equity',f:r=>usd(r.equity)},{h:'Realized',k:'realized_usd',f:r=>sg(r.realized_usd)},{h:'Unrealized',k:'unrealized_usd',f:r=>sg(r.unrealized_usd)},
+   {h:'Closed trades',k:'trades'},{h:'Open',k:'open_positions'},{h:'Win %',k:'win_rate',f:r=>r.win_rate==null?'—':f(r.win_rate,1)+'%'},
+   ...(list.some(r=>r.best_trade!==undefined)?[{h:'Best trade',s:r=>r.best_trade?r.best_trade.pct:null,f:r=>r.best_trade?esc(r.best_trade.coin)+' '+pc(r.best_trade.pct)+' '+sg(r.best_trade.usd):'—'}]:[]),
+   {h:'Best open',s:r=>r.best_open?r.best_open.pct:null,f:r=>r.best_open?esc(r.best_open.coin)+' '+pc(r.best_open.pct):'—'},
+   {h:'Rules (entry / exit / size)',k:'rule',l:1,cls:'rule',f:r=>esc(r.rule)}],list);
+}
+function microPanel(m){
+  const el=$('microp'); if(!el)return;
+  if(!m){el.innerHTML='';return}
+  if(m.status!=='running'){el.innerHTML=`<div class="god micro"><h2>🪙 MICRO $5 / $10</h2><div class="mut">${esc(m.note||'warming up…')}</div></div>`;return}
+  const B=(e,k)=>(e[k]||{}).best||{};
+  el.innerHTML=`<div class="god micro"><h2>🪙 MICRO $5 / $10 <span class="mut" style="font-size:13px">${f(m.bots,0)} bots · since ${esc(m.created_at)}</span></h2>
+   <div class="note">${esc(m.rule)}</div><div class="kv"><span><b>Buy sizes</b> ${esc((m.sizes||[]).join(' · '))}</span><span><b>Closed trades</b> ${f(m.closed_trades,0)}</span><span><b>Open</b> ${f(m.open_positions,0)}</span><span><b>Busted</b> ${f(m.busted,0)}</span></div>
+   <div class="tw" style="margin-top:8px"><table id="microt"></table></div></div>`;
+  const side=k=>[{h:`${k==='s5'?'$5':'$10'} best size`,s:r=>String(B(r,k).size||''),l:1,f:r=>esc(B(r,k).size||'—')},
+   {h:`${k==='s5'?'$5':'$10'} equity`,s:r=>B(r,k).equity,f:r=>usd(B(r,k).equity)},{h:'Return',s:r=>B(r,k).return_pct,f:r=>pc(B(r,k).return_pct)},
+   {h:'Trades',s:r=>B(r,k).trades,f:r=>B(r,k).trades??'—'},{h:'Win %',s:r=>B(r,k).win_rate,f:r=>B(r,k).win_rate==null?'—':f(B(r,k).win_rate,1)+'%'}];
+  table('microt',[{h:'#',k:'rank'},{h:'Method (from)',s:r=>String(r.source),l:1,f:r=>esc(r.source)+(r.qualified?' <span class="pos">✓</span>':'')+`<div class="mut" style="font-size:11px">orig ${f(r.source_trades,0)} trades, ${r.source_return_pct>=0?'+':''}${f(r.source_return_pct,1)}% on $100</div>`},
+   ...side('s5'),...side('s10'),{h:'Rules',k:'rule',l:1,cls:'rule',f:r=>esc(r.rule)}],m.methods||[]);
+}
+const FICON={fam_all:'🧠',fam_dip:'📉',fam_grad:'🎓',fam_volign:'🔊',fam_leg2:'🦵',fam_liq:'💧',fam_herd:'🐃',fam_tod:'🕒',fam_ladder:'🪜',fam_strict:'🛡️',fam_glitch:'🧪',fade:'🔻',fam_top20:'🏆'};
+function famBlock(o){
+  const id='f_'+o.key, ic=FICON[o.key]||'•';
+  if(o.tracker){
+    const host=document.createElement('div'); host.id=id;
+    host.innerHTML=`<div class="god famc"><h2>${ic} ${esc(o.label)} <span class="mut" style="font-size:13px">sell-signal accuracy tracker</span></h2><div class="note">${esc(o.rule)}</div><div class="tw"><table id="${id}_t"></table></div>${(o.recent||[]).length?`<div class="kv"><b>Recent signals</b> ${(o.recent||[]).map(r=>esc(r.coin)+' '+esc(r.at)).join(' · ')}</div>`:''}</div>`;
+    return [host,()=>table(id+'_t',[{h:'Signal rule',k:'rule',l:1},{h:'Signals',k:'signals'},
+      ...['5','15','30'].flatMap(m=>[{h:`Lower after ${m}m`,k:'pct_lower_'+m+'m',f:r=>r['pct_lower_'+m+'m']==null?'—':f(r['pct_lower_'+m+'m'],1)+'% <span class="mut">('+r['checked_'+m+'m']+')</span>'},{h:`Avg move ${m}m`,k:'avg_move_'+m+'m',f:r=>pc(r['avg_move_'+m+'m'])}])],o.combos||[])]}
+  const host=document.createElement('div');host.innerHTML=`<div id="${id}"></div><div id="${id}_top" class="topbox"></div>`;
+  const cls=o.key==='fam_top20'?'top20c':o.key==='fam_all'?'allin':o.experimental?'glitch':'famc';
+  const title=`${ic} ${esc(o.label)}${o.experimental?' <span class="early">experimental, chases bad price spikes</span>':''}`;
+  return [host,()=>{panel(id,cls,title,o,`${esc(o.label)} warming up… Stats appear here once it starts trading.`,x=>{
+    let s=`<div class="kv"><span><b>Round</b> ${f(x.round,0)}</span><span><b>Next halving</b> ${f(x.next_halving_in_min,0)}m</span><span><b>Coins signalling now</b> ${f(x.coins_signalling_now,0)}</span><span><b>Rug/dead exits</b> ${f(x.rugged_or_dead_exits,0)}</span>${x.champion&&x.champion.best_trade?`<span><b>Champion best trade</b> ${esc(x.champion.best_trade.coin)} ${pc(x.champion.best_trade.pct)}</span>`:''}</div>`;
+    if(x.champion&&Array.isArray(x.champion.signals_used))s+=`<div class="kv"><b>Champion's signals</b> ${x.champion.signals_used.map(z=>esc(z.signal)+' <span class="mut">w'+z.weight+'</span>').join(' · ')||'none'}</div>`;
+    if(x.signals_firing_now)s+=`<div class="kv"><b>Signals firing now (coins)</b> ${Object.entries(x.signals_firing_now).map(([k,v])=>esc(k)+' '+v).join(' · ')}</div>`;
+    if(Array.isArray(x.by_window))s+=`<div class="kv"><b>By window</b> ${x.by_window.map(w=>`<span>${esc(w.window)}: ${w.traded}/${w.bots} traded, median ${sg(w.median_net_usd)}, best ${sg(w.best_net_usd)}${w.win_rate!=null?', win '+f(w.win_rate,1)+'%':''}</span>`).join('')}</div>`;
+    if(x.followed)s+=`<div class="kv"><b>Following</b> ${f(x.followed.total,0)} source bots (refreshed ${esc(x.followed.refreshed_at)}) <span class="mut">${Object.entries(x.followed.per_category||{}).map(([k,v])=>esc(k)+' '+v).join(' · ')}</span>${x.source_bots_firing_now!=null?` · <b>firing now</b> ${f(x.source_bots_firing_now,0)}`:''}</div>`;
+    const srcs=(L,t)=>`<div class="kv"><b>${t}</b> ${L.map(z=>`<span>${esc(z.source)} <span class="mut">(${z.trades} tr, ${z.wins} won, </span>${sg(z.pnl_usd)}<span class="mut">)</span></span>`).join(' · ')}</div>`;
+    if(x.champion&&Array.isArray(x.champion.trades_by_source)&&x.champion.trades_by_source.length)s+=srcs(x.champion.trades_by_source,"Champion's trades came from");
+    if(x.champion&&Array.isArray(x.champion.open_sources)&&x.champion.open_sources.length)s+=`<div class="kv"><b>Champion's open trades from</b> ${x.champion.open_sources.map(esc).join(' · ')}</div>`;
+    if(Array.isArray(x.trade_sources)&&x.trade_sources.length)s+=srcs(x.trade_sources,'All variants: trades by source bot');
+    if(Array.isArray(x.sources)&&x.sources.length)s+=`<div class="kv"><b>Hunt entries used</b> ${x.sources.map(z=>'#'+z.id+' <span class="mut">('+z.trades+' tr, '+(z.ret_usd>=0?'+':'')+f(z.ret_usd,0)+'$)</span>').join(' · ')}</div>`;
+    return s});top20(id+'_top',`${ic} ${esc(o.label)}`,o.top20)}]}
+function drawFams(h){
+  const L=(Array.isArray(h.fams)?h.fams:[]).slice().sort((a,b)=>(b.key==='fam_top20')-(a.key==='fam_top20'));['famtop','famrest'].forEach(k=>{const e=$(k);if(e)e.innerHTML=''});
+  for(const o of L){try{const [host,fill]=famBlock(o);($(o.top?'famtop':'famrest')).appendChild(host);fill()}catch(e){console.error(e)}}
+}
+function drawExtras(h){safe('families',()=>drawFams(h));
+  safe('GOD top20',()=>top20('godtop','⚡ GOD',h.god&&h.god.top20));safe('MOONSHOT top20',()=>top20('moontop','🚀 MOONSHOT',h.moonshot&&h.moonshot.top20));safe('ROCKET top20',()=>top20('rockettop','🚀 ROCKET',h.rocket&&h.rocket.top20));
+  safe('ROCKET',()=>panel('rocketp','rocket','🚀 ROCKET',h.rocket,'ROCKET warming up… (only brand-new launches going vertical). Stats appear here once it starts trading.',o=>{
+    const R=Array.isArray(o.runners)?o.runners:[];
+    const kv=`<div class="kv"><span><b>Round</b> ${f(o.round,0)}</span><span><b>Next halving</b> ${f(o.next_halving_in_min,0)}m</span><span><b>Coins signalling now</b> ${f(o.coins_signalling_now,0)}</span><span><b>Rug/dead exits</b> ${f(o.rugged_or_dead_exits,0)}</span>${o.champion&&o.champion.best_trade?`<span><b>Champion best trade</b> ${esc(o.champion.best_trade.coin)} ${pc(o.champion.best_trade.pct)}</span>`:''}</div>`;
+    if(!R.length)return kv+'<div class="kv"><b>Biggest runners caught</b> none yet</div>';
+    return kv+`<div class="kv"><b>Biggest runners caught</b> ${R.slice(0,10).map(r=>`<span>${esc(r.coin)} ${usd(r.entry_mcap).replace(/\.\d+$/,'')} → ${usd(r.peak_mcap).replace(/\.\d+$/,'')} <b class="${r.multiple>=2?'pos':''}">${f(r.multiple,1)}x</b> <span class="mut">(${f(r.bots,0)} bots, ${esc(r.first_entry)})</span></span>`).join('')}</div>`}));safe('MICRO',()=>microPanel(h.micro));
+  safe('GOD',()=>panel('godp','','⚡ GOD',h.god,'GOD warming up… (buys the fastest movers really early). Stats appear here once it starts trading.'));
+  safe('MOONSHOT',()=>panel('moonp','moon','🚀 MOONSHOT 1000%',h.moonshot,'MOONSHOT warming up… (hunting a 1000% runner). Stats appear here once it starts trading.',o=>{
+    const g=pick(o,'best_unrealized','best_unrealized_gainer','best_gainer');if(!g)return '';
+    if(typeof g!=='object')return `<div class="kv"><b>Best unrealized gainer</b> ${esc(g)}</div>`;
+    return `<div class="kv"><b>Best unrealized gainer</b> ${esc(pick(g,'symbol','coin','token','name')||'')} ${pick(g,'unrealized_pct','pnl_pct','gain_pct')!=null?pc(pick(g,'unrealized_pct','pnl_pct','gain_pct')):''} ${pick(g,'unrealized_usd','pnl_usd')!=null?sg(pick(g,'unrealized_usd','pnl_usd')):''}</div>`}));
+  safe('SNIPER',()=>{const sn=h.sniper;const c=sn&&(sn.champion||sn.leader);
+   panel('sniperp','','🎯 SNIPER 90%',sn&&{...sn,champion:c},'SNIPER 90% warming up… (quick scalps aiming for a 90%+ win rate). Stats appear here once it starts trading.',o=>{
+    const t=o.champion||{};const q=o.champion===sn.champion&&sn.champion;
+    return `<div class="kv"><span><b>Status</b> ${q?'<span class="pos">qualified champion (≥90% win, ≥20 trades, profitable)</span>':'<span class="mut">leader by win rate — not qualified yet</span>'}</span>`+
+     `<span><b>Avg win</b> ${sg(t.avg_win)}</span><span><b>Avg loss</b> ${sg(t.avg_loss)}</span>${t.flag?`<span class="neg">${esc(t.flag)}</span>`:''}`+
+     `<span><b>Qualifying now</b> ${f(o.qualifying_now,0)}</span><span><b>Family win rate</b> ${f(o.win_rate_all,1)}%</span></div>`})});
+  safe('best overall',()=>{const b=h.best_overall;
+  if(b){const t=statsOf(b);$('bestov').innerHTML=`<h3>🏆 Best overall</h3><div class="card q"><b>${t.id!=null?'#'+esc(t.id):''}</b> ${pc(t.ret)} ${pick(b,'family','parent_id')!=null?'<span class="mut">· family '+esc(pick(b,'family','parent_id'))+'</span>':''}${statLine(t)}${t.rule?`<div class="rule">${esc(t.rule)}</div>`:''}${t.set?`<div class="kv">${esc(settingsTxt(t.set))}</div>`:''}</div>`}
+  else $('bestov').innerHTML=''});
+  safe('families table',()=>{let fam=h.families; if(fam&&!Array.isArray(fam))fam=Object.entries(fam).map(([k,v])=>({parent_id:k,...v}));
+  $('famnote').textContent=fam?'':(Array.isArray(h.fams)&&h.fams.length?'The strategy families are shown as panels at the top of the page.':'Families appear here once the hunt starts grouping strategies.');
+  table('hfams',[{h:'Parent',s:r=>Number(pick(r,'parent_id','id','family'))||0,f:r=>esc(pick(r,'parent_id','id','family')??'—')},
+   {h:'Return',s:r=>statsOf(r).ret,f:r=>pc(statsOf(r).ret)},{h:'Equity',s:r=>statsOf(r).eq,f:r=>usd(statsOf(r).eq)},{h:'Trades',s:r=>statsOf(r).tr,f:r=>statsOf(r).tr??'—'},
+   {h:'Win %',s:r=>statsOf(r).wr,f:r=>statsOf(r).wr!=null?f(statsOf(r).wr,1)+'%':'—'},{h:'PF',s:r=>statsOf(r).pf,f:r=>f(statsOf(r).pf)},
+   {h:'$/trade',s:r=>statsOf(r).ppt,f:r=>sg(statsOf(r).ppt)},{h:'Max DD',s:r=>statsOf(r).dd,f:r=>statsOf(r).dd!=null?f(statsOf(r).dd,1)+'%':'—'},
+   {h:'Alive / tried',s:r=>pick(r,'variants_alive','alive'),f:r=>f(pick(r,'variants_alive','alive'),0)+' / '+f(pick(r,'variants_tried','tried'),0)},
+   {h:'Entry rule + champion settings',s:r=>String(pick(r,'entry_rule','rule')||''),l:1,cls:'rule',f:r=>esc(pick(r,'entry_rule','rule')||'')+(statsOf(r).set?'<div class="kv">'+fmtSet(statsOf(r).set)+'</div>':'')}],fam||[])});
+}
+function draw(D){ERRS=[];D=D||{};safe('extras',()=>drawExtras(D.hunt||{}));
+  const s=D.status||{},h=D.hunt||{},lb=D.leaderboard||{},hs=s.hunt||{};
+  safe('engine',()=>{
+  const now=EMBED?D.exported:Date.now()/1000, age=now-(s.time||0);
+  const e=$('eng');e.className='pill '+(age<120?'ok':age<600?'warn':'bad');
+  e.lastElementChild.textContent=age<360?'Engine running':age<900?'Engine slow':'Engine stalled';
+  $('upd').textContent=(EMBED?'Snapshot':'Updated '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'}))+' · last tick '+ago(age)+' ago';
+  $('engcards').innerHTML=card('Last tick',ago(age)+' ago',age<120?'pos':'neg')+card('Ticks',f(s.ticks,0))+card('Tracked pools',f(s.tracked,0))+
+   card('Runtime',ago((s.runtime_min||0)*60))+card('Combos live',f(s.combos,0))+card('Trades simulated',f(s.total_trades,0))});
+  safe('hunt',()=>{  const qn=h.qualified_now||[],qe=h.qualified_ever||[];
+  $('huntcards').innerHTML=card('Qualified now',h.qualified_now_total??qn.length,qn.length?'pos':'')+card('Ever qualified',h.qualified_ever_total||qe.length)+card('Candidates',h.candidates_total??(h.candidates||[]).length)+
+   card('Live strategies',f(h.live_variants_total??h.population,0),'pos')+card('Generation',h.generation??'—')+card('Variants tried',f(h.variants_tried_total,0))+card('Next cull',h.next_cull_in_min!=null?f(h.next_cull_in_min,1)+' min':'—')+
+   card('Profitable variants',f(h.variants_profitable,0)+' / '+f(h.variants_with_closed_trades,0))+card('Hunt trades closed',f(h.closed_trades_total,0));
+  $('qrule').textContent='Qualifies when: '+(h.qualification_rule||'')+' Ranking: '+(h.ranking||'');
+  const qa={};qe.forEach(q=>qa[q.id]=q.qualified_at);
+  $('qual').innerHTML=qn.length?qn.map(r=>`<div class="card q"><b>#${r.id}</b> ${pc(r.net_return_pct)} <span class="mut">· qualified ${esc(qa[r.id]||'')}</span>
+   <div class="stats"><span>Equity <b>${usd(r.equity)}</b></span><span>Trades <b>${r.trades}</b></span><span>Win <b>${f(r.win_rate,1)}%</b></span><span>PF <b>${f(r.profit_factor)}</b></span>
+   <span>$/trade <b>${sg(r.avg_pnl_per_trade)}</b></span><span>Max DD <b>${f(r.max_drawdown_pct,1)}%</b></span><span>Open <b>${r.open_positions}</b></span></div>
+   <div class="rule">${esc(r.rule)}</div></div>`).join(''):'<div class="card mut">None qualifying right now.</div>';
+  table('qever',[{h:'#',k:'id',f:r=>'#'+r.id},{h:'Qualified at',k:'qualified_at',l:1},{h:'Return then',s:r=>r.snapshot?.net_return_pct,f:r=>pc(r.snapshot?.net_return_pct)},
+   {h:'Trades then',s:r=>r.snapshot?.trades,f:r=>r.snapshot?.trades??'—'},{h:'Still qualified',s:r=>qn.some(x=>x.id==r.id)?1:0,f:r=>qn.some(x=>x.id==r.id)?'<span class="pos">yes</span>':'<span class="mut">no</span>'},
+   {h:'Rules',k:'rule',cls:'rule',l:1,f:r=>esc(r.rule)}],qe);
+  table('top10',HC,h.top10_ranked);table('top20p',HC,h.top10_20plus_trades);
+  $('ccount').textContent=h.candidates_total??(h.candidates||[]).length;table('cands',HC,h.candidates)});
+  // chart
+  safe('chart',()=>{const qn=h.qualified_now||[];  const pts=D.history||[];const top=[...new Set([...(qn.map(r=>r.id)),...(h.top10_ranked||[]).map(r=>r.id)])].slice(0,6).map(String);
+  if(window.Chart&&pts.length>1){
+    const cols=['#2fd38a','#9b7bff','#ffc857','#4cc9f0','#ff5d6c','#f78c6b'];
+    const ds=top.map((id,i)=>({label:'#'+id,borderColor:cols[i],backgroundColor:cols[i],pointRadius:0,borderWidth:2,tension:.2,spanGaps:true,
+      data:pts.map(p=>({x:p.t*1000,y:p.eq[id]??null}))}));
+    const labels=pts.map(p=>new Date(p.t*1000).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}));
+    ds.forEach(d=>d.data=d.data.map(p=>p.y));
+    if(!chart){chart=new Chart($('chart'),{type:'line',data:{labels,datasets:ds},options:{animation:false,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:'#c9cfdc'}}},scales:{x:{ticks:{color:'#8b93a7',maxTicksLimit:8},grid:{color:'#1c2230'}},y:{ticks:{color:'#8b93a7',callback:v=>'$'+v},grid:{color:'#1c2230'}}}}})}
+    else{chart.data.labels=labels;chart.data.datasets=ds;chart.update()}
+    $('chartnote').textContent=`Equity of the current top strategies, ${pts.length} points since history started (sampled every ~1 min, last 6h).`;
+  } else $('chartnote').textContent=window.Chart?'Collecting history… chart appears after a couple of minutes.':'Chart needs internet (Chart.js) to draw.'});
+  // leaderboard
+  safe('leaderboard',()=>{  $('lbcards').innerHTML=card('Leaderboard updated',esc((lb.generated||'—').replace(/^\d{4}-\d\d-\d\d /,'')))+card('Closed trades',f(lb.total_closed_trades,0))+
+   card('Open positions',f(lb.open_positions,0))+card('Busted accounts',f(lb.busted_total,0),'neg');
+  const tiers=(lb.tiers||[]).map(t=>({...t,b:(t.top5||[])[0]||{}}));
+  table('tiers',[{h:'Balance',k:'balance',f:r=>usd(r.balance)},{h:'Median',k:'median_return_pct',f:r=>pc(r.median_return_pct)},{h:'Best',k:'best_return_pct',f:r=>pc(r.best_return_pct)},
+   {h:'Profitable',k:'profitable',f:r=>f(r.profitable,0)+' ('+f(100*r.profitable/(r.traded||1),1)+'%)'},{h:'Busted',k:'busted',f:r=>f(r.busted,0)},
+   {h:'Best trades',s:r=>r.b.trades,f:r=>r.b.trades??'—'},{h:'Best strategy',s:r=>r.b.strategy||'',l:1,cls:'rule',f:r=>esc(r.b.strategy)}],tiers);
+  table('fams',[{h:'Family',k:'family',l:1},{h:'Median return',k:'median_return_pct',f:r=>pc(r.median_return_pct)},{h:'% profitable',k:'pct_profitable',f:r=>f(r.pct_profitable,1)+'%'},
+   {h:'Variants',k:'traded_variants',f:r=>f(r.traded_variants,0)},{h:'Busted',k:'busted',f:r=>f(r.busted,0)}],lb.families);
+  table('lbtop',LC,lb.top20)});
+  showErrs();
+}
+let LASTOK=0,LASTEXP=0,BUSY=false;
+async function getData(){const r=await (async()=>{try{const r=await fetch('https://api.github.com/repos/ooio6001-del/solstrats-dashboard/contents/data.json?ref=data&_='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;const j=await r.json();if(!j.content)throw 0;const b=Uint8Array.from(atob(j.content.replace(/\n/g,'')),c=>c.charCodeAt(0));return new Response(new TextDecoder().decode(b))}catch(e){try{const r=await fetch('https://raw.githubusercontent.com/ooio6001-del/solstrats-dashboard/data/data.json',{cache:'no-store'});if(!r.ok)throw 0;return r}catch(e2){return fetch('data.json?_='+Date.now(),{cache:'no-store'})}}})();if(!r.ok)throw new Error('HTTP '+r.status);
+  const t=await r.text();if(!t||t.length<50)throw new Error('data file came back empty');return JSON.parse(t)}
+async function tick(){
+  if(BUSY)return;BUSY=true;let d=null;
+  try{d=await getData()}catch(e){console.warn('fetch failed, retrying once',e);await new Promise(z=>setTimeout(z,1500));try{d=await getData()}catch(e2){console.warn(e2);showErrs('Data load failed: '+(e2&&e2.message||e2))}}
+  BUSY=false;
+  if(d){LASTOK=Date.now();LASTEXP=d.exported||0;try{draw(d)}catch(e){console.error('draw',e);showErrs('Draw failed: '+(e&&e.message||e))}}
+  else{const a=LASTEXP?Math.max(0,Date.now()/1000-LASTEXP):null;
+    $('upd').textContent=a==null?'loading data… retrying':'showing data from '+ago(a)+' ago (retrying)'}
+}
+if(EMBED){$('offline').style.display='';$('snapt').textContent=new Date(EMBED.exported*1000).toLocaleString();$('dl').style.display='none';draw(EMBED)}
+else{tick();setInterval(tick,90000)}
+</script></body></html>
